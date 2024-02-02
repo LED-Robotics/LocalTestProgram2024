@@ -21,6 +21,10 @@ ctre::phoenix6::hardware::TalonFX *intake;
 ctre::phoenix6::hardware::TalonFX *shooterLeft;
 ctre::phoenix6::hardware::TalonFX *shooterRight;
 Spark *chassisBlinkin;
+ctre::phoenix6::controls::VelocityVoltage ctreVelocity{0_tps};
+units::angular_velocity::turns_per_second_t velTarget = 0.0_tps;
+
+
 
 double testingBlinkinVoltage = -.99;
 double shooterMultiplier = .5;
@@ -29,6 +33,7 @@ void Robot::RobotInit() {
   m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
   m_chooser.AddOption(kAutoNameCustom, kAutoNameCustom);
   frc::SmartDashboard::PutData("Auto Modes", &m_chooser);
+  frc::SmartDashboard::PutNumber("Select RPM", 0.0);
   controller = new frc::XboxController(0);
   intake = new ctre::phoenix6::hardware::TalonFX(8);
   shooterLeft = new ctre::phoenix6::hardware::TalonFX(9);
@@ -84,17 +89,28 @@ void Robot::AutonomousPeriodic() {
 void Robot::TeleopInit() {}
 
 void Robot::TeleopPeriodic() {
+
   //Shooter activated by Left/Right Trigger Axises
   intake->Set(controller->GetRightTriggerAxis() - controller->GetLeftTriggerAxis());
   //Intake activated by Right Y Axis
-  if (abs(controller->GetRightY()) > .07) {
-    shooterLeft->Set(controller->GetRightY()*shooterMultiplier);
-    shooterRight->Set(controller->GetRightY()*shooterMultiplier);
+  // if (abs(controller->GetRightY()) > .07) {
+  //   shooterLeft->Set(controller->GetRightY()*shooterMultiplier);
+  //   shooterRight->Set(controller->GetRightY()*shooterMultiplier);
+  // } else {
+  //   shooterLeft->Set(.0);
+  //   shooterRight->Set(.0);
+  // }
+  if(controller->GetStartButton()) {
+    velTarget = units::angular_velocity::turns_per_second_t{frc::SmartDashboard::GetNumber("Select RPM", 0.0) / 60.0};
+    shooterLeft->SetControl(ctreVelocity
+      .WithVelocity(velTarget));
+    shooterRight->SetControl(ctreVelocity
+      .WithVelocity(velTarget));
   } else {
-    shooterLeft->Set(.0);
-    shooterRight->Set(.0);
+      shooterLeft->Set(0.0);
+      shooterRight->Set(0.0);
   }
-
+  frc::SmartDashboard::PutNumber("Actual RPM", shooterLeft->GetVelocity().GetValueAsDouble() * 60.0);
   chassisBlinkin->Set(testingBlinkinVoltage);
 
   if (controller->GetYButtonReleased()) {
