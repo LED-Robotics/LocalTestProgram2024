@@ -18,13 +18,12 @@ using namespace rev;
 
 frc::XboxController *controller;
 ctre::phoenix6::hardware::TalonFX *intake;
-ctre::phoenix6::hardware::TalonFX *shooterLeft;
-ctre::phoenix6::hardware::TalonFX *shooterRight;
+ctre::phoenix6::hardware::TalonFX *shooterTop;
+ctre::phoenix6::hardware::TalonFX *shooterBottom;
 Spark *chassisBlinkin;
 ctre::phoenix6::controls::VelocityVoltage ctreVelocity{0_tps};
-units::angular_velocity::turns_per_second_t velTarget = 0.0_tps;
-
-
+units::angular_velocity::turns_per_second_t velTargetShooter = 0.0_tps;
+units::angular_velocity::turns_per_second_t velTargetIntake = 0.0_tps;
 
 double testingBlinkinVoltage = -.99;
 double shooterMultiplier = .5;
@@ -33,14 +32,12 @@ void Robot::RobotInit() {
   m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
   m_chooser.AddOption(kAutoNameCustom, kAutoNameCustom);
   frc::SmartDashboard::PutData("Auto Modes", &m_chooser);
-  frc::SmartDashboard::PutNumber("Select RPM", 0.0);
+  frc::SmartDashboard::PutNumber("Select RPM Shooter", 0.0);
+  frc::SmartDashboard::PutNumber("Select RPM Intake", 0.0);
   controller = new frc::XboxController(0);
   intake = new ctre::phoenix6::hardware::TalonFX(8);
-  shooterLeft = new ctre::phoenix6::hardware::TalonFX(9);
-  shooterRight = new ctre::phoenix6::hardware::TalonFX(10);
-  shooterRight->SetInverted(true);
-  intake->SetInverted(true);
-
+  shooterTop = new ctre::phoenix6::hardware::TalonFX(9);
+  shooterBottom = new ctre::phoenix6::hardware::TalonFX(10);
   chassisBlinkin = new Spark(5);
 }
 
@@ -89,47 +86,58 @@ void Robot::AutonomousPeriodic() {
 void Robot::TeleopInit() {}
 
 void Robot::TeleopPeriodic() {
+  double intakeSpeed;
+  if(controller->GetAButton()){
+      velTargetIntake = units::angular_velocity::turns_per_second_t{frc::SmartDashboard::GetNumber("Select RPM Intake", 0.0) / 60.0};
+      intake->SetControl(ctreVelocity.WithVelocity(velTargetIntake*-1));
+  }
 
-  //Shooter activated by Left/Right Trigger Axises
-  intake->Set(controller->GetRightTriggerAxis() - controller->GetLeftTriggerAxis());
+  else if(fabs(controller->GetLeftY()) > 0.07){
+      intakeSpeed = controller->GetLeftY();
+      intake->Set(intakeSpeed*-1);
+  }
+
+  else{
+    intake->Set(0.0);
+    intakeSpeed=0.0;
+  }
   //Intake activated by Right Y Axis
   // if (abs(controller->GetRightY()) > .07) {
-  //   shooterLeft->Set(controller->GetRightY()*shooterMultiplier);
-  //   shooterRight->Set(controller->GetRightY()*shooterMultiplier);
+  //   shooterTop->Set(controller->GetRightY()*shooterMultiplier);
+  //   shooterBottom->Set(controller->GetRightY()*shooterMultiplier);
   // } else {
-  //   shooterLeft->Set(.0);
-  //   shooterRight->Set(.0);
+  //   shooterTop->Set(.0);
+  //   shooterBottom->Set(.0);
   // }
   if(controller->GetStartButton()) {
-    velTarget = units::angular_velocity::turns_per_second_t{frc::SmartDashboard::GetNumber("Select RPM", 0.0) / 60.0};
-    shooterLeft->SetControl(ctreVelocity
-      .WithVelocity(velTarget));
-    shooterRight->SetControl(ctreVelocity
-      .WithVelocity(velTarget));
+    velTargetShooter = units::angular_velocity::turns_per_second_t{frc::SmartDashboard::GetNumber("Select RPM Shooter", 0.0) / 60.0};
+    shooterTop->SetControl(ctreVelocity
+      .WithVelocity(velTargetShooter*-1));
+    shooterBottom->SetControl(ctreVelocity
+      .WithVelocity(velTargetShooter));
   } else {
-      shooterLeft->Set(0.0);
-      shooterRight->Set(0.0);
+      shooterTop->Set(0.0);
+      shooterBottom->Set(0.0);
   }
-  frc::SmartDashboard::PutNumber("Actual RPM", shooterLeft->GetVelocity().GetValueAsDouble() * 60.0);
+  frc::SmartDashboard::PutNumber("Actual Shooter RPM", -shooterTop->GetVelocity().GetValueAsDouble() * 60.0);
   chassisBlinkin->Set(testingBlinkinVoltage);
 
-  if (controller->GetYButtonReleased()) {
-    shooterMultiplier += .05;
-  }
-  if (controller->GetXButtonReleased()) {
-    shooterMultiplier -= .05;
-  }
+  // if (controller->GetYButtonReleased()) {
+  //   shooterMultiplier += .05;
+  // }
+  // if (controller->GetXButtonReleased()) {
+  //   shooterMultiplier -= .05;
+  // }
 
+  //Keep Controller Stick Control of Intake, but push of button A turns for set amount of degrees.
+  // if (testingBlinkinVoltage > .99) { testingBlinkinVoltage = -.99; } else if (testingBlinkinVoltage < -.99) { testingBlinkinVoltage = .99; }
+  // if (controller->GetAButtonReleased()) {
+  //   testingBlinkinVoltage += .02;
+  // }
+  // if (controller->GetBButtonReleased()) {
+  //   testingBlinkinVoltage -= .02;
+  // }
 
-  if (testingBlinkinVoltage > .99) { testingBlinkinVoltage = -.99; } else if (testingBlinkinVoltage < -.99) { testingBlinkinVoltage = .99; }
-  if (controller->GetAButtonReleased()) {
-    testingBlinkinVoltage += .02;
-  }
-  if (controller->GetBButtonReleased()) {
-    testingBlinkinVoltage -= .02;
-  }
-
-  frc::SmartDashboard::PutNumber("Shooter Power", shooterMultiplier);
   frc::SmartDashboard::PutNumber("Blinkin V's", testingBlinkinVoltage);
 }
 
