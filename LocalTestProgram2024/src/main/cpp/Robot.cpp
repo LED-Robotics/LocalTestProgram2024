@@ -14,12 +14,12 @@
 
 
 using namespace frc;
-using namespace rev;
 
 frc::XboxController *controller;
 ctre::phoenix6::hardware::TalonFX *intake;
 ctre::phoenix6::hardware::TalonFX *shooterTop;
 ctre::phoenix6::hardware::TalonFX *shooterBottom;
+rev::CANSparkMax *indexer;
 Spark *chassisBlinkin;
 ctre::phoenix6::controls::VelocityVoltage ctreVelocity{0_tps};
 units::angular_velocity::turns_per_second_t velTargetShooter = 0.0_tps;
@@ -38,6 +38,7 @@ void Robot::RobotInit() {
   intake = new ctre::phoenix6::hardware::TalonFX(8);
   shooterTop = new ctre::phoenix6::hardware::TalonFX(9);
   shooterBottom = new ctre::phoenix6::hardware::TalonFX(10);
+  indexer = new rev::CANSparkMax(10, rev::CANSparkLowLevel::MotorType::kBrushless);
   chassisBlinkin = new Spark(5);
 }
 
