@@ -7,6 +7,7 @@
 #include <numbers>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <rev/CANSparkMax.h>
+#include <rev/CANSparkLowLevel.h>
 #include <frc/GenericHID.h>
 #include "frc/XboxController.h"
 #include "frc/motorcontrol/Spark.h"
@@ -14,19 +15,25 @@
 
 
 using namespace frc;
+using namespace rev;
 
 frc::XboxController *controller;
 ctre::phoenix6::hardware::TalonFX *intake;
 ctre::phoenix6::hardware::TalonFX *shooterTop;
 ctre::phoenix6::hardware::TalonFX *shooterBottom;
-rev::CANSparkMax *indexer;
 Spark *chassisBlinkin;
 ctre::phoenix6::controls::VelocityVoltage ctreVelocity{0_tps};
 units::angular_velocity::turns_per_second_t velTargetShooter = 0.0_tps;
 units::angular_velocity::turns_per_second_t velTargetIntake = 0.0_tps;
 
+rev::CANSparkMax *indexerMotor;
+rev::SparkPIDController indexerPIDController;
+
 double testingBlinkinVoltage = -.99;
 double shooterMultiplier = .5;
+double indexerGearRatio = 1/3;
+
+double kP = 0.1;
 
 void Robot::RobotInit() {
   m_chooser.SetDefaultOption(kAutoNameDefault, kAutoNameDefault);
@@ -38,7 +45,11 @@ void Robot::RobotInit() {
   intake = new ctre::phoenix6::hardware::TalonFX(8);
   shooterTop = new ctre::phoenix6::hardware::TalonFX(9);
   shooterBottom = new ctre::phoenix6::hardware::TalonFX(10);
-  indexer = new rev::CANSparkMax(10, rev::CANSparkLowLevel::MotorType::kBrushless);
+  
+  indexerMotor = new rev::CANSparkMax(19, CANSparkMaxLowLevel::MotorType::kBrushless);//4096 ticks per revolution
+  indexerPIDController = indexerMotor->GetPIDController();
+  rev::SparkRelativeEncoder indexer = indexerMotor->GetEncoder(rev::SparkRelativeEncoder::Type::kHallSensor);
+  indexerPIDController.SetP(kP);
   chassisBlinkin = new Spark(5);
 }
 
@@ -93,7 +104,7 @@ void Robot::TeleopPeriodic() {
       intake->SetControl(ctreVelocity.WithVelocity(velTargetIntake*-1));
   }
 
-  else if(fabs(controller->GetLeftY()) > 0.07){
+  else if(fabs(controller->GetLeftY()) > 0.07){//Used to be else if
       intakeSpeed = controller->GetLeftY();
       intake->Set(intakeSpeed*-1);
   }
@@ -102,6 +113,22 @@ void Robot::TeleopPeriodic() {
     intake->Set(0.0);
     intakeSpeed=0.0;
   }
+double reeh;
+
+if(controller->GetYButton()){
+  indexerPIDController.SetReference()
+}
+
+// else if(fabs(controller->GetRightY()) > 0.07){  
+//   reeh = controller->GetRightY();
+//   indexerMotor->Set((reeh/4)*-1);
+// }
+
+// else {
+//   reeh=0;
+//   indexerMotor->Set(0.0);
+//}
+  
   //Intake activated by Right Y Axis
   // if (abs(controller->GetRightY()) > .07) {
   //   shooterTop->Set(controller->GetRightY()*shooterMultiplier);
@@ -110,7 +137,7 @@ void Robot::TeleopPeriodic() {
   //   shooterTop->Set(.0);
   //   shooterBottom->Set(.0);
   // }
-  if(controller->GetStartButton()) {
+  if(fabs(controller->GetRightTriggerAxis())>0.1) {
     velTargetShooter = units::angular_velocity::turns_per_second_t{frc::SmartDashboard::GetNumber("Select RPM Shooter", 0.0) / 60.0};
     shooterTop->SetControl(ctreVelocity
       .WithVelocity(velTargetShooter*-1));
