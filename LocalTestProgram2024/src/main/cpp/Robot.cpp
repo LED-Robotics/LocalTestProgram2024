@@ -38,7 +38,8 @@ void Robot::RobotInit() {
   intake = new ctre::phoenix6::hardware::TalonFX(8);
   shooterTop = new ctre::phoenix6::hardware::TalonFX(9);
   shooterBottom = new ctre::phoenix6::hardware::TalonFX(10);
-  indexer = new rev::CANSparkMax(10, rev::CANSparkLowLevel::MotorType::kBrushless);
+  indexer = new rev::CANSparkMax(19, rev::CANSparkLowLevel::MotorType::kBrushless);
+  
   chassisBlinkin = new Spark(5);
 }
 
@@ -123,13 +124,6 @@ void Robot::TeleopPeriodic() {
   frc::SmartDashboard::PutNumber("Actual Shooter RPM", -shooterTop->GetVelocity().GetValueAsDouble() * 60.0);
   chassisBlinkin->Set(testingBlinkinVoltage);
 
-  // if (controller->GetYButtonReleased()) {
-  //   shooterMultiplier += .05;
-  // }
-  // if (controller->GetXButtonReleased()) {
-  //   shooterMultiplier -= .05;
-  // }
-
   //Keep Controller Stick Control of Intake, but push of button A turns for set amount of degrees.
   // if (testingBlinkinVoltage > .99) { testingBlinkinVoltage = -.99; } else if (testingBlinkinVoltage < -.99) { testingBlinkinVoltage = .99; }
   // if (controller->GetAButtonReleased()) {
@@ -140,6 +134,20 @@ void Robot::TeleopPeriodic() {
   // }
 
   frc::SmartDashboard::PutNumber("Blinkin V's", testingBlinkinVoltage);
+
+  if (controller->GetYButtonReleased()) {
+    indexer->Set(50.0); //Arbitrary
+    velTargetShooter = units::angular_velocity::turns_per_second_t{frc::SmartDashboard::GetNumber("Select RPM Shooter", 0.0) / 60.0};
+    shooterTop->SetControl(ctreVelocity
+      .WithVelocity(velTargetShooter*-1));
+    shooterBottom->SetControl(ctreVelocity
+      .WithVelocity(velTargetShooter));
+    delay(1000); //Arbitrary
+    shooterTop->Set(0);
+    shooterBottom->Set(0);
+    indexer->Set(-30.0); //Arbitrary
+    delay(200); //Arbitrary
+  }
 }
 
 void Robot::DisabledInit() {}
